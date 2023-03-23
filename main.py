@@ -14,8 +14,9 @@ class MeanShiftTrack(Tracker):
         self.bins = 5
         sigma = 1
         self.alpha = 0.1
-        self.eps = 1e-12
+        self.eps = 1e-8
         self.hist_kernel = create_epanechnik_kernel(maxx - minx, maxy - miny, sigma)
+        self.der_kernel = (self.hist_kernel > 0).astype(np.int32)
         print(self.hist_kernel.shape)
         self.minx, self.miny, self.maxx, self.maxy = minx, miny, maxx, maxy
         #calc_Weights = np.sqrt(q(extracted)/p(extracted))
@@ -31,6 +32,12 @@ class MeanShiftTrack(Tracker):
         weights_v = np.sqrt(self.template_hist/(next_hist + self.eps))
 
         weights_wi = backproject_histogram(extracted, weights_v, self.bins)
+        x, y = np.meshgrid(self.template_hist, next_hist)
+        print(x[0], y[:, 0], x[0].shape, x[1].shape)
+        print(weights_wi * x)
+        quit()
+        plt.imshow(weights_wi)
+        plt.show()
         print(weights_wi, weights_wi.shape)
         ...
         quit()
@@ -43,6 +50,8 @@ class MeanShiftTrack(Tracker):
 
 if __name__ == '__main__':
     a = np.random.randint(0,255, size=(3, 100, 100))
+    #plt.imshow(a.transpose((1,2,0)))
+    #plt.show()
     T = MeanShiftTrack("")
     T.initialize(a, [40, 60, 21, 21])
     T.track(np.roll(a, 3, axis=-1))
