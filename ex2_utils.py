@@ -58,7 +58,7 @@ def extract_histogram(patch, nbins, weights=None):
     channel_bin_idxs = np.floor((patch.astype(np.float32) / float(255)) * float(nbins - 1))
     # calculate bin index of a 3D histogram
     bin_idxs = (channel_bin_idxs[:, :, 0] * nbins**2  + channel_bin_idxs[:, :, 1] * nbins + channel_bin_idxs[:, :, 2]).astype(np.int32)
-    print(bin_idxs.shape)
+    #print(bin_idxs.shape)
     # count bin indices to create histogram (use per-pixel weights if given)
     if weights is not None:
         histogram_ = np.bincount(bin_idxs.flatten(), weights=weights.flatten())
