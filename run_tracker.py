@@ -4,71 +4,78 @@ import cv2
 
 from sequence_utils import VOTSequence
 from ncc_tracker_example import NCCTracker, NCCParams
-from main import MeanShiftTrack, MSParams
+from main import MeanShiftTracker, MSParams
 
 
 # set the path to directory where you have the sequences
 dataset_path = './data' # TODO: set to the dataet path on your disk
-sequence = 'hand'  # choose the sequence you want to test
+seq_name = 'tunnel'  # choose the sequence you want to test
 
-# visualization and setup parameters
-win_name = 'Tracking window'
-reinitialize = True
-show_gt = False
-video_delay = 15
-font = cv2.FONT_HERSHEY_PLAIN
+#parameters = NCCParams()
+#tracker = NCCTracker(parameters)
 
-# create sequence object
-sequence = VOTSequence(dataset_path, sequence)
-init_frame = 0
-n_failures = 0
-# create parameters and tracker objects
-parameters = NCCParams()
-tracker = NCCTracker(parameters)
-parameters = MSParams()
-tracker = MeanShiftTrack(parameters)
+for i in [1e-8, 1e-5, 1e-2, 0.1, 1, 10]:
+    aval = 0
+    fail = 0
+    num=5
+    for avg in range(num):
+        win_name = 'Tracking window'
+        reinitialize = True
+        show_gt = False
+        video_delay = 15
+        font = cv2.FONT_HERSHEY_PLAIN
 
-time_all = 0
+        # create sequence object
+        sequence = VOTSequence(dataset_path, seq_name)
+        init_frame = 0
+        n_failures = 0
+        # create parameters and tracker objects
+        parameters = MSParams(eps=i)
+        tracker = MeanShiftTracker(parameters)
 
-# initialize visualization window
-sequence.initialize_window(win_name)
-# tracking loop - goes over all frames in the video sequence
-frame_idx = 0
-while frame_idx < sequence.length():
-    img = cv2.imread(sequence.frame(frame_idx))
-    # initialize or track
-    if frame_idx == init_frame:
-        # initialize tracker (at the beginning of the sequence or after tracking failure)
-        t_ = time.time()
-        tracker.initialize(img, sequence.get_annotation(frame_idx, type='rectangle'))
-        time_all += time.time() - t_
-        predicted_bbox = sequence.get_annotation(frame_idx, type='rectangle')
-    else:
-        # track on current frame - predict bounding box
-        t_ = time.time()
-        predicted_bbox = tracker.track(img)
-        time_all += time.time() - t_
+        time_all = 0
 
-    # calculate overlap (needed to determine failure of a tracker)
-    gt_bb = sequence.get_annotation(frame_idx, type='rectangle')
-    o = sequence.overlap(predicted_bbox, gt_bb)
+        # initialize visualization window
+        sequence.initialize_window(win_name)
+        # tracking loop - goes over all frames in the video sequence
+        frame_idx = 0
+        while frame_idx < sequence.length():
+            img = cv2.imread(sequence.frame(frame_idx))
+            # initialize or track
+            if frame_idx == init_frame:
+                # initialize tracker (at the beginning of the sequence or after tracking failure)
+                t_ = time.time()
+                tracker.initialize(img, sequence.get_annotation(frame_idx, type='rectangle'))
+                time_all += time.time() - t_
+                predicted_bbox = sequence.get_annotation(frame_idx, type='rectangle')
+            else:
+                # track on current frame - predict bounding box
+                t_ = time.time()
+                predicted_bbox = tracker.track(img)
+                time_all += time.time() - t_
 
-    # draw ground-truth and predicted bounding boxes, frame numbers and show image
-    if show_gt:
-        sequence.draw_region(img, gt_bb, (0, 255, 0), 1)
-    sequence.draw_region(img, predicted_bbox, (0, 0, 255), 2)
-    sequence.draw_text(img, '%d/%d' % (frame_idx + 1, sequence.length()), (25, 25))
-    sequence.draw_text(img, 'Fails: %d' % n_failures, (25, 55))
-    sequence.show_image(img, video_delay)
+            # calculate overlap (needed to determine failure of a tracker)
+            gt_bb = sequence.get_annotation(frame_idx, type='rectangle')
+            o = sequence.overlap(predicted_bbox, gt_bb)
 
-    if o > 0 or not reinitialize:
-        # increase frame counter by 1
-        frame_idx += 1
-    else:
-        # increase frame counter by 5 and set re-initialization to the next frame
-        frame_idx += 5
-        init_frame = frame_idx
-        n_failures += 1
+            # draw ground-truth and predicted bounding boxes, frame numbers and show image
+            if show_gt:
+                sequence.draw_region(img, gt_bb, (0, 255, 0), 1)
+            sequence.draw_region(img, predicted_bbox, (0, 0, 255), 2)
+            sequence.draw_text(img, '%d/%d' % (frame_idx + 1, sequence.length()), (25, 25))
+            sequence.draw_text(img, 'Fails: %d' % n_failures, (25, 55))
+            sequence.show_image(img, video_delay)
 
-print('Tracking speed: %.1f FPS' % (sequence.length() / time_all))
-print('Tracker failed %d times' % n_failures)
+            if o > 0 or not reinitialize:
+                # increase frame counter by 1
+                frame_idx += 1
+            else:
+                # increase frame counter by 5 and set re-initialization to the next frame
+                frame_idx += 5
+                init_frame = frame_idx
+                n_failures += 1
+        aval += sequence.length() / time_all
+        fail += n_failures
+        #print('Tracker failed %d times' % n_failures)
+    print('Tracking speed: %.1f FPS' % (aval/num), "for bins", i)
+    print('Tracker failed %d times' % fail, "failures avg")
